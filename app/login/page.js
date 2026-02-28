@@ -24,6 +24,17 @@ export default function LoginPage() {
     }
   };
 
+  const handleLogin = async (formData) => {
+  const result = await loginAction(formData);
+  if (result.success) {
+    if (result.role === 'admin') window.location.href = "/admin";
+    else if (result.role === 'teacher') window.location.href = "/teacher";
+    else window.location.href = "/student";
+  } else {
+    alert(result.error);
+  }
+};
+
   return (
     <div className="flex h-screen items-center justify-center bg-gray-100">
       <form onSubmit={handleSubmit} className="p-8 bg-white shadow-md rounded-lg">
