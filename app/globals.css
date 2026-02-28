@@ -24,3 +24,32 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+@media print {
+  /* 1. إخفاء كل العناصر في الصفحة */
+  body * {
+    visibility: hidden;
+  }
+
+  /* 2. إظهار منطقة الشهادة فقط وما بداخلها */
+  #printable-area, #printable-area * {
+    visibility: visible;
+  }
+
+  /* 3. جعل الشهادة تبدأ من أعلى الصفحة تماماً */
+  #printable-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 20px;
+    border: none; /* إزالة الحدود الخارجية إذا أردت */
+    box-shadow: none; /* إزالة الظل لجعلها تبدو رسمية */
+  }
+
+  /* إخفاء زر الطباعة وأي عناصر تفاعلية داخل الشهادة */
+  .no-print {
+    display: none !important;
+  }
+}
