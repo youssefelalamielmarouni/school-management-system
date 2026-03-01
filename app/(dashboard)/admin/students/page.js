@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
-import { getClassesForStudent, createStudent, getStudents, deleteStudent } from "@/lib/actions/studentActions";
+import { getClassesForStudent, getStudents, deleteStudent } from "@/lib/actions/studentActions";
+import { createStudent } from "@/lib/actions/userActions";
 
 export default function StudentsPage() {
   const [classes, setClasses] = useState([]);

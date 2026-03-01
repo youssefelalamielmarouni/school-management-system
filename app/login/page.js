@@ -1,56 +1,73 @@
 "use client";
-import { signIn } from "next-auth/react";
+import { signIn, getSession } from "next-auth/react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
+
+    // 1. محاولة تسجيل الدخول
     const result = await signIn("credentials", {
       email,
       password,
-      redirect: false, // نمنع إعادة التوجيه التلقائي للتحقق من النتيجة
+      redirect: false, 
     });
 
     if (result.error) {
       alert("خطأ في البيانات: " + result.error);
+      setLoading(false);
     } else {
-      router.push("/admin/dashboard"); // وجهه للوحة التحكم عند النجاح
+      // 2. جلب بيانات الجلسة لمعرفة الرتبة (Role)
+      const session = await getSession();
+      const role = session?.user?.role; // تأكد أن Next-Auth يمرر الـ role في الـ session
+
+      // 3. التوجيه الذكي بناءً على الرتبة
+      if (role === 'admin') {
+        router.push("/admin");
+      } else if (role === 'student') {
+        router.push("/student");
+      } else if (role === 'teacher') {
+        router.push("/teacher");
+      } else {
+        router.push("/"); // وجهة افتراضية
+      }
+      
       router.refresh();
     }
   };
 
-  const handleLogin = async (formData) => {
-  const result = await loginAction(formData);
-  if (result.success) {
-    if (result.role === 'admin') window.location.href = "/admin";
-    else if (result.role === 'teacher') window.location.href = "/teacher";
-    else window.location.href = "/student";
-  } else {
-    alert(result.error);
-  }
-};
-
   return (
     <div className="flex h-screen items-center justify-center bg-gray-100">
-      <form onSubmit={handleSubmit} className="p-8 bg-white shadow-md rounded-lg">
-        <h1 className="text-2xl font-bold mb-4">تسجيل دخول الإدارة</h1>
+      <form onSubmit={handleSubmit} className="p-8 bg-white shadow-md rounded-lg w-96">
+        <h1 className="text-2xl font-bold mb-6 text-center text-blue-800">تسجيل الدخول الموحد</h1>
+        
         <input 
-          type="email" placeholder="البريد الإلكتروني" 
-          className="block w-full p-2 border mb-3 text-black"
+          type="email" 
+          placeholder="البريد الإلكتروني" 
+          className="block w-full p-2 border mb-3 text-black rounded"
           onChange={(e) => setEmail(e.target.value)}
+          required
         />
         <input 
-          type="password" placeholder="كلمة المرور" 
-          className="block w-full p-2 border mb-4 text-black"
+          type="password" 
+          placeholder="كلمة المرور" 
+          className="block w-full p-2 border mb-4 text-black rounded"
           onChange={(e) => setPassword(e.target.value)}
+          required
         />
-        <button className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700">
-          دخول
+        
+        <button 
+          disabled={loading}
+          className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700 transition"
+        >
+          {loading ? "جاري التحقق..." : "دخول"}
         </button>
       </form>
     </div>

@@ -24,19 +24,25 @@ const handler = NextAuth({
       }
     })
   ],
-  callbacks: {
-    // تخزين الدور في الـ Token
+ callbacks: {
     async jwt({ token, user }) {
-      if (user) token.role = user.role;
-      return token;
+      if (user) {
+        // نضع الـ ID والـ Role داخل الـ token
+        token.id = user.id?.toString() || user._id?.toString(); 
+        token.role = user.role;
+      }
+      return token; // ⚠️ هذا هو السطر الناقص الذي كان يسبب المشكلة!
     },
-    // تمرير الدور من الـ Token إلى الـ Session لتستخدمها في الواجهات
     async session({ session, token }) {
-      if (session.user) session.user.role = token.role;
+      if (session.user) {
+        // ننقل البيانات من الـ token إلى الـ session
+        session.user.id = token.id;
+        session.user.role = token.role;
+      }
       return session;
     }
   },
-  pages: {
+pages: {
     signIn: '/login', // صفحة تسجيل الدخول المخصصة التي ستنشئها
   }
 });
