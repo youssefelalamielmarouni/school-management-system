@@ -13,6 +13,8 @@
     "bcryptjs": "^3.0.3",
     "js-cookie": "^3.0.5",
     "jsonwebtoken": "^9.0.3",
+    "jspdf": "^4.2.0",
+    "jspdf-autotable": "^5.0.7",
     "lucide-react": "^0.575.0",
     "mongoose": "^9.2.1",
     "next": "16.1.6",

@@ -1,50 +1,62 @@
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import connectDB from "@/lib/db";
-import User from "@/lib/models/users"; // تأكد من مسار الـ Model الخاص بك
+import User from "@/lib/models/users";
 import bcrypt from "bcrypt";
 
-const handler = NextAuth({
+export const authOptions = {
+  // 1. المزودون (Providers) - تنتهي المصفوفة عند السطر 26
   providers: [
     CredentialsProvider({
-      name: "Credentials",
+      name: "credentials",
       async authorize(credentials) {
         await connectDB();
-        
-        // 1. البحث عن المستخدم
         const user = await User.findOne({ email: credentials.email });
-        if (!user) throw new Error("المستخدم غير موجود");
 
-        // 2. التحقق من كلمة المرور
-        const isPasswordCorrect = await bcrypt.compare(credentials.password, user.password);
-        if (!isPasswordCorrect) throw new Error("كلمة المرور خاطئة");
+        if (!user) throw new Error("البريد الإلكتروني غير مسجل");
 
-        // 3. إرجاع بيانات المستخدم (بما فيها الدور)
-        return { id: user._id, name: user.name, email: user.email, role: user.role };
-      }
-    })
+        const passwordMatch = await bcrypt.compare(credentials.password, user.password);
+        if (!passwordMatch) throw new Error("كلمة المرور خاطئة");
+
+        return user;
+      },
+    }),
   ],
- callbacks: {
+
+  // 2. الإعدادات العامة (يجب أن تكون خارج المصفوفة)
+  secret: process.env.NEXTAUTH_SECRET,
+  
+  session: {
+    strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30 يوم
+  },
+
+  pages: {
+    signIn: "/login",
+  },
+
+  callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        // نضع الـ ID والـ Role داخل الـ token
-        token.id = user.id?.toString() || user._id?.toString(); 
+        token.id = user._id.toString();
         token.role = user.role;
+        token.classId = user.classId?.toString();
+        // أضفنا هذا السطر للتأكد من وجود معرف البروفايل الذي يبحث عنه الأكشن
+        token.studentProfile = user.studentProfile?.toString();
       }
-      return token; // ⚠️ هذا هو السطر الناقص الذي كان يسبب المشكلة!
+      return token;
     },
     async session({ session, token }) {
-      if (session.user) {
-        // ننقل البيانات من الـ token إلى الـ session
+      if (token) {
         session.user.id = token.id;
         session.user.role = token.role;
+        session.user.classId = token.classId;
+        session.user.studentProfile = token.studentProfile;
       }
       return session;
-    }
+    },
   },
-pages: {
-    signIn: '/login', // صفحة تسجيل الدخول المخصصة التي ستنشئها
-  }
-});
+};
 
+const handler = NextAuth(authOptions);
 export { handler as GET, handler as POST };

@@ -5,11 +5,11 @@ import { Save, Award, BookOpen } from "lucide-react";
 
 export default function TeacherGradesPage() {
   const [students, setStudents] = useState([]);
-  const [scores, setScores] = useState({}); // { studentId: 85 }
+  // أبقِ على هذا السطر فقط واحذف أي تكرار له
+  const [scores, setScores] = useState({}); 
+  const [isSaving, setIsSaving] = useState(false);
   const [examName, setExamName] = useState("اختبار شهر مارس");
   const [subject, setSubject] = useState("اللغة العربية");
-  const [isSaving, setIsSaving] = useState(false);
-
   useEffect(() => {
     getStudentsByClassName("bac").then(setStudents);
   }, []);
@@ -55,6 +55,16 @@ export default function TeacherGradesPage() {
       console.log("Process finished.");
     }
   };
+
+
+
+// 2. هذه هي الدالة المفقودة التي تسبب الخطأ
+const handleScoreChange = (studentId, value) => {
+  setScores(prev => ({
+    ...prev,
+    [studentId]: value // نربط الدرجة بـ ID الطالب
+  }));
+};
   return (
     <div className="p-8 max-w-4xl mx-auto space-y-6" dir="rtl">
       <div className="bg-white p-6 rounded-3xl shadow-sm border border-purple-50 flex justify-between items-center">
@@ -97,7 +107,7 @@ export default function TeacherGradesPage() {
                 <td className="p-4 flex justify-center">
                   <input 
                     type="number"
-                    max="100"
+                    max="20"
                     min="0"
                     className="w-20 p-2 text-center bg-purple-50 border-2 border-purple-100 rounded-xl focus:border-purple-500 outline-none transition"
                     onChange={(e) => handleScoreChange(student._id, e.target.value)}
