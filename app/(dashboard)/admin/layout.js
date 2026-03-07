@@ -1,4 +1,7 @@
+"use client";  // Add this at the very top
+
 import Link from "next/link";
+import { signOut } from "next-auth/react";  // Make sure to import signOut
 
 export default function AdminLayout({ children }) {
   const menuItems = [
@@ -6,8 +9,27 @@ export default function AdminLayout({ children }) {
     { name: "المعلمين", path: "/admin/teachers" },
     { name: "الطلاب", path: "/admin/students" },
     { name: "الفصول الدراسيّة", path: "/admin/classes" },
-    { name: "الإعدادات", path: "/admin/settings" },
+    { name: "التقارير", path: "/admin/reports" },
+    { name: "بيان درجات", path: "/admin/transcript" },
+    { name: "رصد درجات", path: "/admin/grades" },
+    { name: "إدارة المواد الدراسية", path: "/admin/subjects" },
   ];
+
+  const handleLogout = async () => {
+  // 1. مسح أي بيانات مخزنة يدويًا في المتصفح (اختياري ولكن محفز للأمان)
+  localStorage.clear();
+  sessionStorage.clear();
+
+  // 2. تسجيل الخروج الشامل
+  await signOut({ 
+    redirect: true, 
+    callbackUrl: "/login" 
+  });
+  
+  // 3. في بعض المتصفحات، نحتاج لإجبار الصفحة على التحديث الكامل 
+  // لضمان أن Middleware يرفض أي طلبات قديمة
+  window.location.href = "/login";
+};
 
   return (
     <div className="flex min-h-screen bg-gray-50 text-gray-800">
@@ -28,7 +50,10 @@ export default function AdminLayout({ children }) {
           ))}
         </nav>
         <div className="p-4 border-t border-purple-600">
-          <button className="w-full bg-purple-800 py-2 rounded hover:bg-red-500 transition">
+          <button 
+            className="w-full bg-purple-800 py-2 rounded hover:bg-red-500 transition" 
+            onClick={handleLogout}
+          >
             تسجيل الخروج
           </button>
         </div>

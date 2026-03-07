@@ -143,7 +143,7 @@ export default function StudentGradesPage() {
       {grades.length > 0 ? (
         <div className="space-y-6">
           {/* بطاقة المعدل */}
-          <div className="bg-gradient-to-r from-purple-600 to-indigo-600 p-8 rounded-3xl shadow-xl text-white flex justify-between items-center">
+          <div className="bg-gradient from-purple-600 to-indigo-600 p-8 rounded-3xl shadow-xl text-white flex justify-between items-center">
             <div>
               <p className="text-purple-100 font-medium mb-1">المعدل الإجمالي</p>
               <h2 className="text-5xl font-black">{average} <span className="text-xl opacity-70">/ 20</span></h2>
