@@ -1,454 +1,428 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { getStudentsByClassName, submitAttendance } from "@/lib/actions/teacherActions";
+import { getTeacherDashboardData, getStudentsByClassName, submitAttendance } from "@/lib/actions/teacherActions";
 import { 
-  CheckCircle, 
-  XCircle, 
-  Save, 
-  Loader2,
-  Users,
-  Calendar,
-  Clock,
-  Search,
-  Filter,
-  ChevronDown,
-  Download,
-  AlertCircle,
-  UserCheck,
-  UserX,
-  UserClock,
-  CheckCircle2,
-  XCircle as XCircleIcon,
-  Clock3,
-  Shield,
-  BarChart
+  CheckCircle, XCircle, Save, Loader2, Users, Calendar, Clock, Search, 
+  Filter, Download, AlertCircle, UserCheck, UserX, BarChart, CheckCircle2,
+  GraduationCap, ChevronLeft, ChevronDown, Circle, CircleCheckBig
 } from "lucide-react";
 
 export default function SmartAttendance() {
   const { data: session, status } = useSession();
+  const [classes, setClasses] = useState([]);
+  const [selectedClass, setSelectedClass] = useState("");
   const [students, setStudents] = useState([]);
   const [attendance, setAttendance] = useState({});
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
-  const [showStats, setShowStats] = useState(false);
+  const [showStats, setShowStats] = useState(true);
   const [message, setMessage] = useState({ type: "", text: "" });
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
 
   useEffect(() => {
-    const loadData = async () => {
+    const fetchInitialData = async () => {
       try {
-        setLoading(true);
-        const data = await getStudentsByClassName("bac");
-        
-        if (data && data.length > 0) {
-          setStudents(data);
-          const initial = {};
-          data.forEach(s => initial[s._id] = "Present");
-          setAttendance(initial);
-          showMessage("success", `تم تحميل ${data.length} طالب`);
+        const res = await getTeacherDashboardData();
+        if (res.success && res.classes.length > 0) {
+          setClasses(res.classes);
+          setSelectedClass(res.classes[0].name);
         }
       } catch (err) {
-        console.error("Fetch error:", err);
-        showMessage("error", "فشل في تحميل البيانات");
+        console.error(err);
       } finally {
         setLoading(false);
       }
     };
-
-    loadData();
+    fetchInitialData();
   }, []);
 
-  const showMessage = (type, text) => {
-    setMessage({ type, text });
-    setTimeout(() => setMessage({ type: "", text: "" }), 3000);
-  };
-
-  const toggleStudentStatus = (studentId) => {
-    setAttendance(prev => ({
-      ...prev,
-      [studentId]: prev[studentId] === "Present" ? "Absent" : "Present"
-    }));
-  };
-
-  const setAllStudents = (status) => {
-    const newAttendance = {};
-    students.forEach(s => newAttendance[s._id] = status);
-    setAttendance(newAttendance);
-    showMessage("success", `تم تعيين جميع الطلاب كـ ${status === "Present" ? "حاضر" : "غائب"}`);
-  };
+  useEffect(() => {
+    if (!selectedClass) return;
+    const loadStudents = async () => {
+      setLoading(true);
+      try {
+        const data = await getStudentsByClassName(selectedClass);
+        const parsedData = typeof data === 'string' ? JSON.parse(data) : data;
+        if (parsedData) {
+          setStudents(parsedData);
+          const initial = {};
+          parsedData.forEach(s => initial[s._id] = "Present");
+          setAttendance(initial);
+        }
+      } catch (err) {
+        setMessage({ type: "error", text: "فشل تحميل الطلاب" });
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadStudents();
+  }, [selectedClass]);
 
   const handleSaveReport = async () => {
     if (students.length === 0) return;
     setIsSaving(true);
-    
-    const payload = students.map(s => ({
-      studentId: s._id,
-      classId: s.classId,
-      status: attendance[s._id] || "Present",
-      date: new Date()
-    }));
-
     try {
+      const payload = students.map(s => ({
+        studentId: s._id,
+        classId: s.classId,
+        status: attendance[s._id] || "Present",
+        date: new Date(selectedDate)
+      }));
       const result = await submitAttendance(payload);
       if (result.success) {
-        showMessage("success", "✅ تم حفظ سجل الحضور بنجاح");
-      } else {
-        showMessage("error", `❌ فشل: ${result.error}`);
+        setMessage({ type: "success", text: "✅ تم حفظ سجل الحضور بنجاح!" });
       }
     } catch (error) {
-      showMessage("error", "❌ حدث خطأ في الاتصال");
+      setMessage({ type: "error", text: "❌ حدث خطأ أثناء الحفظ" });
     } finally {
       setIsSaving(false);
+      setTimeout(() => setMessage({ type: "", text: "" }), 3000);
     }
   };
 
-  const getStats = () => {
-    const total = students.length;
-    const present = Object.values(attendance).filter(s => s === "Present").length;
-    const absent = Object.values(attendance).filter(s => s === "Absent").length;
-    return { total, present, absent };
+  const toggleStatus = (id) => {
+    setAttendance(prev => ({ ...prev, [id]: prev[id] === "Present" ? "Absent" : "Present" }));
   };
 
-  const filteredStudents = students.filter(student => {
-    const matchesSearch = student.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesFilter = filterStatus === "all" || attendance[student._id] === filterStatus;
-    return matchesSearch && matchesFilter;
-  });
+  const markAllPresent = () => {
+    const newAttendance = {};
+    students.forEach(s => newAttendance[s._id] = "Present");
+    setAttendance(newAttendance);
+  };
 
-  const stats = getStats();
+  const markAllAbsent = () => {
+    const newAttendance = {};
+    students.forEach(s => newAttendance[s._id] = "Absent");
+    setAttendance(newAttendance);
+  };
 
   if (status === "loading" || loading) {
-    return <LoadingSkeleton />;
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="bg-purple-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto animate-pulse">
+            <GraduationCap className="text-purple-600" size={40} />
+          </div>
+          <p className="text-purple-600 font-bold text-lg">جاري تحميل بيانات الحضور...</p>
+        </div>
+      </div>
+    );
   }
 
+  const filtered = students.filter(s => 
+    s.name.toLowerCase().includes(searchTerm.toLowerCase())
+  ).filter(s => {
+    if (filterStatus === "present") return attendance[s._id] === "Present";
+    if (filterStatus === "absent") return attendance[s._id] === "Absent";
+    return true;
+  });
+
+  const presentCount = students.filter(s => attendance[s._id] === "Present").length;
+  const absentCount = students.filter(s => attendance[s._id] === "Absent").length;
+  const attendanceRate = students.length > 0 ? Math.round((presentCount / students.length) * 100) : 0;
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 p-6" dir="rtl">
+    <div className="min-h-screen bg-white p-4 md:p-8" dir="rtl">
       <div className="max-w-7xl mx-auto space-y-6">
         
-        {/* Header */}
-        <div className="bg-white rounded-3xl shadow-xl p-8 border border-gray-100">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-            <div>
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-3 bg-gradient-to-br from-indigo-100 to-purple-200 rounded-2xl">
-                  <Users className="text-indigo-600 w-6 h-6" />
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-2 text-sm text-gray-500">
+          <span className="hover:text-purple-600 cursor-pointer transition">الرئيسية</span>
+          <ChevronLeft size={16} />
+          <span className="hover:text-purple-600 cursor-pointer transition">المعلم</span>
+          <ChevronLeft size={16} />
+          <span className="text-purple-600 font-medium">تسجيل الحضور</span>
+        </div>
+
+        {/* Welcome Message */}
+        <div className="bg-purple-50 border-2 border-purple-100 rounded-2xl p-4 text-purple-700">
+          <div className="flex items-center gap-3">
+            <div className="bg-white p-2 rounded-xl">
+              <UserCheck className="text-purple-600" size={20} />
+            </div>
+            <p className="font-medium">
+              مرحباً أستاذ/ {session?.user?.name || "المعلم"}! يمكنك الآن تسجيل حضور طلابك بسهولة
+            </p>
+          </div>
+        </div>
+
+        {/* Main Control Card */}
+        <div className="bg-white rounded-3xl border-2 border-purple-100 shadow-lg shadow-purple-100/30 overflow-hidden">
+          
+          {/* Header Section */}
+          <div className="bg-gradient-to-l from-purple-50 to-white p-6 md:p-8 border-b-2 border-purple-100">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+              {/* Title & Class Selector */}
+              <div className="flex items-center gap-4">
+                <div className="bg-purple-100 p-3 rounded-2xl">
+                  <Users className="text-purple-600" size={32} />
                 </div>
-                <h1 className="text-3xl font-black bg-gradient-to-l from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                  حضور فصل bac
-                </h1>
+                <div>
+                  <h1 className="text-2xl md:text-3xl font-black text-gray-800">
+                    تسجيل الحضور
+                  </h1>
+                  <div className="flex items-center gap-2 mt-2">
+                    <Calendar size={16} className="text-purple-600" />
+                    <span className="text-gray-600 text-sm">{selectedDate}</span>
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center gap-4 text-gray-500">
-                <div className="flex items-center gap-1">
-                  <Calendar className="w-4 h-4" />
-                  <span>{new Date().toLocaleDateString('ar-EG', { 
-                    weekday: 'long', 
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric' 
-                  })}</span>
-                </div>
-                <div className="w-1 h-1 bg-gray-300 rounded-full"></div>
-                <div className="flex items-center gap-1">
-                  <Clock className="w-4 h-4" />
-                  <span>{new Date().toLocaleTimeString('ar-EG', { 
-                    hour: '2-digit', 
-                    minute: '2-digit' 
-                  })}</span>
-                </div>
+
+              {/* Controls */}
+              <div className="flex flex-wrap items-center gap-3">
+                <select 
+                  value={selectedClass} 
+                  onChange={(e) => setSelectedClass(e.target.value)}
+                  className="bg-white border-2 border-purple-200 rounded-xl px-4 py-2.5 text-sm font-medium text-gray-700 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none transition"
+                >
+                  {classes.map(c => (
+                    <option key={c.id} value={c.name}>{c.name}</option>
+                  ))}
+                </select>
+
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="bg-white border-2 border-purple-200 rounded-xl px-4 py-2.5 text-sm focus:border-purple-500 outline-none transition"
+                />
+
+                <button
+                  onClick={handleSaveReport}
+                  disabled={isSaving}
+                  className="bg-gradient-to-r from-purple-600 to-purple-700 text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-purple-200 hover:shadow-xl hover:scale-105 transition-all duration-300 disabled:opacity-50 disabled:hover:scale-100"
+                >
+                  {isSaving ? (
+                    <Loader2 className="animate-spin" size={18} />
+                  ) : (
+                    <Save size={18} />
+                  )}
+                  حفظ السجل
+                </button>
               </div>
             </div>
 
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowStats(!showStats)}
-                className="px-4 py-2 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 transition-all flex items-center gap-2"
-              >
-                <BarChart className="w-4 h-4" />
-                الإحصائيات
-              </button>
-              <button
-                onClick={() => setAllStudents("Present")}
-                className="px-4 py-2 bg-green-50 text-green-600 rounded-xl hover:bg-green-100 transition-all flex items-center gap-2"
-              >
-                <UserCheck className="w-4 h-4" />
-                الكل حاضر
-              </button>
-              <button
-                onClick={() => setAllStudents("Absent")}
-                className="px-4 py-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-all flex items-center gap-2"
-              >
-                <UserX className="w-4 h-4" />
-                الكل غائب
-              </button>
-              <button
-                onClick={handleSaveReport}
-                disabled={isSaving}
-                className="px-6 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:shadow-lg transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isSaving ? (
-                  <>
-                    <Loader2 className="animate-spin w-4 h-4" />
-                    جاري الحفظ...
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-4 h-4" />
-                    إرسال التقرير
-                  </>
-                )}
-              </button>
+            {/* Quick Actions & Filters */}
+            <div className="flex flex-wrap items-center justify-between gap-4 mt-6">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={markAllPresent}
+                  className="bg-green-50 hover:bg-green-100 border-2 border-green-200 text-green-700 px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-2 transition-all"
+                >
+                  <CheckCircle size={16} />
+                  حضور الكل
+                </button>
+                <button
+                  onClick={markAllAbsent}
+                  className="bg-red-50 hover:bg-red-100 border-2 border-red-200 text-red-700 px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-2 transition-all"
+                >
+                  <XCircle size={16} />
+                  غياب الكل
+                </button>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                  <input
+                    type="text"
+                    placeholder="بحث عن طالب..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="bg-white border-2 border-purple-200 rounded-xl pr-10 pl-4 py-2 text-sm focus:border-purple-500 outline-none transition w-64"
+                  />
+                </div>
+
+                <select
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                  className="bg-white border-2 border-purple-200 rounded-xl px-4 py-2 text-sm focus:border-purple-500 outline-none transition"
+                >
+                  <option value="all">جميع الطلاب</option>
+                  <option value="present">الحضور فقط</option>
+                  <option value="absent">الغياب فقط</option>
+                </select>
+              </div>
             </div>
           </div>
 
           {/* Stats Cards */}
-          {showStats && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8 animate-slideDown">
-              <StatCard
-                label="إجمالي الطلاب"
-                value={stats.total}
-                icon={<Users className="w-5 h-5" />}
-                color="indigo"
-              />
-              <StatCard
-                label="الحضور"
-                value={stats.present}
-                icon={<CheckCircle2 className="w-5 h-5" />}
-                color="green"
-                percentage={(stats.present / stats.total * 100).toFixed(1)}
-              />
-              <StatCard
-                label="الغياب"
-                value={stats.absent}
-                icon={<XCircleIcon className="w-5 h-5" />}
-                color="red"
-                percentage={(stats.absent / stats.total * 100).toFixed(1)}
-              />
-            </div>
-          )}
-        </div>
-
-        {/* Message Alert */}
-        {message.text && (
-          <div className={`p-4 rounded-2xl flex items-center gap-3 animate-slideDown ${
-            message.type === "success" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
-          }`}>
-            {message.type === "success" ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
-            <span className="font-medium">{message.text}</span>
-          </div>
-        )}
-
-        {/* Search and Filter */}
-        <div className="bg-white rounded-2xl shadow-lg p-4 border border-gray-100">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1 relative">
-              <input
-                type="text"
-                placeholder="بحث عن طالب..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-4 py-3 pr-10 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              />
-              <Search className="absolute left-3 top-3.5 text-gray-400 w-5 h-5" />
-            </div>
-            
-            <div className="flex gap-2">
-              <button
-                onClick={() => setFilterStatus("all")}
-                className={`px-4 py-2 rounded-xl font-medium transition-all flex items-center gap-2 ${
-                  filterStatus === "all" 
-                    ? "bg-indigo-100 text-indigo-600" 
-                    : "bg-gray-50 text-gray-600 hover:bg-gray-100"
-                }`}
-              >
-                <Filter className="w-4 h-4" />
-                الكل
-              </button>
-              <button
-                onClick={() => setFilterStatus("Present")}
-                className={`px-4 py-2 rounded-xl font-medium transition-all flex items-center gap-2 ${
-                  filterStatus === "Present" 
-                    ? "bg-green-100 text-green-600" 
-                    : "bg-gray-50 text-gray-600 hover:bg-gray-100"
-                }`}
-              >
-                <CheckCircle className="w-4 h-4" />
-                الحضور
-              </button>
-              <button
-                onClick={() => setFilterStatus("Absent")}
-                className={`px-4 py-2 rounded-xl font-medium transition-all flex items-center gap-2 ${
-                  filterStatus === "Absent" 
-                    ? "bg-red-100 text-red-600" 
-                    : "bg-gray-50 text-gray-600 hover:bg-gray-100"
-                }`}
-              >
-                <XCircle className="w-4 h-4" />
-                الغياب
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Students Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filteredStudents.map(student => (
-            <StudentCard
-              key={student._id}
-              student={student}
-              status={attendance[student._id] || "Present"}
-              onToggle={() => toggleStudentStatus(student._id)}
-            />
-          ))}
-        </div>
-
-        {/* Empty State */}
-        {filteredStudents.length === 0 && (
-          <div className="bg-white rounded-3xl shadow-xl p-12 text-center">
-            <div className="bg-gray-50 rounded-full w-20 h-20 mx-auto mb-4 flex items-center justify-center">
-              <Users className="w-10 h-10 text-gray-400" />
-            </div>
-            <h3 className="text-xl font-bold text-gray-700 mb-2">لا يوجد طلاب</h3>
-            <p className="text-gray-400">لا توجد نتائج تطابق بحثك</p>
-          </div>
-        )}
-
-        {/* Footer */}
-        <div className="flex justify-between items-center text-sm text-gray-500">
-          <p>إجمالي الطلاب: {students.length} | المعروض: {filteredStudents.length}</p>
-          <button className="flex items-center gap-2 text-indigo-600 hover:text-indigo-700 transition-colors">
-            <Download className="w-4 h-4" />
-            تصدير التقرير
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ========== Subcomponents ==========
-
-function StudentCard({ student, status, onToggle }) {
-  const isPresent = status === "Present";
-  
-  return (
-    <div
-      onClick={onToggle}
-      className={`group relative overflow-hidden rounded-3xl border-2 cursor-pointer transition-all transform hover:scale-[1.02] hover:shadow-xl ${
-        isPresent 
-          ? "bg-gradient-to-br from-white to-green-50 border-green-200 hover:border-green-300" 
-          : "bg-gradient-to-br from-white to-red-50 border-red-200 hover:border-red-300"
-      }`}
-    >
-      {/* Decorative Elements */}
-      <div className={`absolute top-0 left-0 w-32 h-32 rounded-full blur-3xl opacity-20 transition-all ${
-        isPresent ? "bg-green-500" : "bg-red-500"
-      }`}></div>
-      
-      <div className="relative p-6">
-        <div className="flex items-start justify-between mb-4">
-          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl font-bold ${
-            isPresent 
-              ? "bg-green-100 text-green-600" 
-              : "bg-red-100 text-red-600"
-          }`}>
-            {student.name.charAt(0)}
-          </div>
-          {isPresent ? (
-            <CheckCircle className="text-green-500 w-6 h-6 animate-bounce" />
-          ) : (
-            <XCircle className="text-red-500 w-6 h-6 animate-pulse" />
-          )}
-        </div>
-        
-        <h3 className="font-bold text-gray-800 text-lg mb-1">{student.name}</h3>
-        <div className="flex items-center gap-2 text-sm">
-          <span className={`px-2 py-1 rounded-lg text-xs font-medium ${
-            isPresent 
-              ? "bg-green-100 text-green-600" 
-              : "bg-red-100 text-red-600"
-          }`}>
-            {isPresent ? "حاضر" : "غائب"}
-          </span>
-          <span className="text-gray-400 text-xs">رقم: {student.rollNumber || "---"}</span>
-        </div>
-
-        {/* Progress Bar */}
-        <div className="mt-4 h-1 bg-gray-100 rounded-full overflow-hidden">
-          <div 
-            className={`h-full transition-all duration-500 ${
-              isPresent ? "bg-green-500" : "bg-red-500"
-            }`}
-            style={{ width: isPresent ? "100%" : "0%" }}
-          ></div>
-        </div>
-      </div>
-
-      {/* Hover Effect */}
-      <div className={`absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity ${
-        isPresent ? "bg-green-500" : "bg-red-500"
-      }`}></div>
-    </div>
-  );
-}
-
-function StatCard({ label, value, icon, color, percentage }) {
-  const colors = {
-    indigo: "from-indigo-100 to-indigo-200 text-indigo-600",
-    green: "from-green-100 to-green-200 text-green-600",
-    red: "from-red-100 to-red-200 text-red-600"
-  };
-
-  return (
-    <div className="bg-gray-50 rounded-2xl p-5 hover:shadow-md transition-all">
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-gray-500 text-sm">{label}</span>
-        <div className={`p-2.5 bg-gradient-to-br ${colors[color]} rounded-xl`}>
-          {icon}
-        </div>
-      </div>
-      <div className="flex items-end justify-between">
-        <span className="text-3xl font-black text-gray-800">{value}</span>
-        {percentage && (
-          <span className={`text-sm font-medium ${
-            color === "green" ? "text-green-600" : 
-            color === "red" ? "text-red-600" : "text-indigo-600"
-          }`}>
-            {percentage}%
-          </span>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function LoadingSkeleton() {
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-50 p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        <div className="bg-white rounded-3xl shadow-xl p-8">
-          <div className="animate-pulse space-y-4">
-            <div className="h-10 bg-gray-200 rounded-xl w-64"></div>
-            <div className="h-4 bg-gray-200 rounded-xl w-48"></div>
-            <div className="grid grid-cols-3 gap-4 mt-8">
-              {[...Array(3)].map((_, i) => (
-                <div key={i} className="h-24 bg-gray-100 rounded-2xl"></div>
-              ))}
-            </div>
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-4 gap-4">
-          {[...Array(8)].map((_, i) => (
-            <div key={i} className="h-48 bg-white rounded-3xl animate-pulse">
-              <div className="p-6 space-y-4">
-                <div className="w-12 h-12 bg-gray-200 rounded-2xl"></div>
-                <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-6 bg-purple-50/50 border-b-2 border-purple-100">
+            <div className="bg-white rounded-xl p-4 border-2 border-purple-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-500">إجمالي الطلاب</p>
+                  <p className="text-2xl font-bold text-gray-800">{students.length}</p>
+                </div>
+                <div className="bg-purple-100 p-3 rounded-xl">
+                  <Users className="text-purple-600" size={24} />
+                </div>
               </div>
             </div>
-          ))}
+
+            <div className="bg-white rounded-xl p-4 border-2 border-green-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-500">الحضور</p>
+                  <p className="text-2xl font-bold text-green-600">{presentCount}</p>
+                </div>
+                <div className="bg-green-100 p-3 rounded-xl">
+                  <CheckCircle2 className="text-green-600" size={24} />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl p-4 border-2 border-red-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-500">الغياب</p>
+                  <p className="text-2xl font-bold text-red-600">{absentCount}</p>
+                </div>
+                <div className="bg-red-100 p-3 rounded-xl">
+                  <UserX className="text-red-600" size={24} />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl p-4 border-2 border-purple-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-500">نسبة الحضور</p>
+                  <p className="text-2xl font-bold text-purple-600">{attendanceRate}%</p>
+                </div>
+                <div className="bg-purple-100 p-3 rounded-xl">
+                  <BarChart className="text-purple-600" size={24} />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Message Display */}
+          {message.text && (
+            <div className={`mx-6 mt-6 p-4 rounded-2xl text-white font-bold flex items-center gap-3 ${
+              message.type === 'success' ? 'bg-green-500' : 'bg-red-500'
+            }`}>
+              {message.type === 'success' ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
+              {message.text}
+            </div>
+          )}
+
+          {/* Students Grid */}
+          <div className="p-6">
+            {filtered.length === 0 ? (
+              <div className="text-center py-16">
+                <div className="bg-purple-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <AlertCircle className="text-purple-400" size={40} />
+                </div>
+                <h3 className="text-xl font-bold text-gray-700 mb-2">لا يوجد طلاب</h3>
+                <p className="text-gray-500">لم يتم العثور على طلاب مطابقين لمعايير البحث</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {filtered.map(student => (
+                  <div 
+                    key={student._id}
+                    onClick={() => toggleStatus(student._id)}
+                    className={`group relative p-6 rounded-2xl border-2 transition-all duration-300 cursor-pointer hover:shadow-lg ${
+                      attendance[student._id] === "Present" 
+                        ? "bg-white border-green-200 hover:border-green-400 hover:shadow-green-100" 
+                        : "bg-white border-red-200 hover:border-red-400 hover:shadow-red-100"
+                    }`}
+                  >
+                    {/* Status Badge */}
+                    <div className={`absolute top-3 left-3 px-3 py-1 rounded-full text-xs font-bold ${
+                      attendance[student._id] === "Present"
+                        ? "bg-green-100 text-green-700 border border-green-200"
+                        : "bg-red-100 text-red-700 border border-red-200"
+                    }`}>
+                      {attendance[student._id] === "Present" ? "حاضر" : "غائب"}
+                    </div>
+
+                    {/* Student Info */}
+                    <div className="flex flex-col items-center text-center">
+                      <div className={`w-16 h-16 rounded-2xl flex items-center justify-center font-bold text-xl mb-3 ${
+                        attendance[student._id] === "Present"
+                          ? "bg-green-100 text-green-600"
+                          : "bg-red-100 text-red-600"
+                      }`}>
+                        {student.name.charAt(0)}
+                      </div>
+                      
+                      <h3 className="font-bold text-gray-800 text-lg mb-1">{student.name}</h3>
+                      
+                      <div className="flex items-center gap-1 text-xs text-gray-400 mb-3">
+                        <span>ID: {student._id.slice(-6)}</span>
+                      </div>
+
+                      {/* Toggle Indicator */}
+                      <div className={`flex items-center gap-2 text-sm font-medium ${
+                        attendance[student._id] === "Present"
+                          ? "text-green-600"
+                          : "text-red-600"
+                      }`}>
+                        {attendance[student._id] === "Present" ? (
+                          <>
+                            <CircleCheckBig size={16} />
+                            <span>انقر لتغيير إلى غائب</span>
+                          </>
+                        ) : (
+                          <>
+                            <Circle size={16} />
+                            <span>انقر لتغيير إلى حاضر</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Quick Status Icon */}
+                    <div className={`absolute bottom-3 right-3 ${
+                      attendance[student._id] === "Present"
+                        ? "text-green-500"
+                        : "text-red-500"
+                    }`}>
+                      {attendance[student._id] === "Present" ? (
+                        <CheckCircle size={24} />
+                      ) : (
+                        <XCircle size={24} />
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Summary Footer */}
+        <div className="bg-purple-50 rounded-2xl p-4 border-2 border-purple-100">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                <span className="text-sm text-gray-600">
+                  الحضور: <span className="font-bold text-green-600">{presentCount}</span>
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                <span className="text-sm text-gray-600">
+                  الغياب: <span className="font-bold text-red-600">{absentCount}</span>
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Clock size={14} className="text-purple-600" />
+                <span className="text-sm text-gray-600">
+                  آخر تحديث: {new Date().toLocaleTimeString('ar-EG')}
+                </span>
+              </div>
+            </div>
+            <div className="text-xs text-gray-400">
+              * انقر على بطاقة الطالب لتغيير حالة الحضور
+            </div>
+          </div>
         </div>
       </div>
     </div>
