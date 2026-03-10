@@ -46,7 +46,7 @@ export default function LoginPage() {
   return (
     <div className="flex h-screen items-center justify-center bg-gray-100">
       <form onSubmit={handleSubmit} className="p-8 bg-white shadow-md rounded-lg w-96">
-        <h1 className="text-2xl font-bold mb-6 text-center text-blue-800">تسجيل الدخول الموحد</h1>
+        <h1 className="text-2xl font-bold mb-6 text-center text-purple-800">تسجيل الدخول الموحد</h1>
         
         <input 
           type="email" 
@@ -65,11 +65,28 @@ export default function LoginPage() {
         
         <button 
           disabled={loading}
-          className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700 transition"
+          className="w-full bg-purple-600 text-white p-2 rounded hover:bg-purple-700 transition"
         >
           {loading ? "جاري التحقق..." : "دخول"}
         </button>
       </form>
+
+      to test system:
+      <div className="absolute bottom-4 left-4 bg-white p-4 rounded shadow">
+        <h2 className="font-bold mb-2">بيانات الاختبار:</h2>
+        <p><strong>Admin:</strong>
+          <br />البريد: admin@school.com
+          <br />كلمة المرور: admin123
+        </p>
+        <p><strong>Student:</strong>
+          <br />البريد: student9@gmail.com
+          <br />كلمة المرور:  123          
+        </p>
+        <p><strong>Teacher:</strong>
+          <br />البريد:teacher2@gmail.com
+          <br />كلمة المرور: 123
+        </p>
+      </div>
     </div>
   );
 }

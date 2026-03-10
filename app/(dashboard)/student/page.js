@@ -1,5 +1,5 @@
 "use client";
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react"; 
 import { useState, useEffect } from "react";
 import { getStudentProfileData } from "@/lib/actions/studentPortalActions";
 import { 
@@ -8,7 +8,8 @@ import {
   AlertCircle,
   RefreshCw,
   FileText,
-  ArrowLeft
+  ArrowLeft,
+  LogOut
 } from "lucide-react";
 import Link from "next/link";
 
@@ -118,8 +119,8 @@ function WelcomeHeader({ student }) {
   return (
     <div className="relative bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-3xl p-8 overflow-hidden shadow-xl">
       <div className="relative z-10">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+          <div className="flex-1">
             <p className="text-indigo-100 mb-2 text-lg">{getGreeting()}،</p>
             <h1 className="text-3xl md:text-4xl font-black mb-3">{student.name}</h1>
             <div className="flex items-center gap-4 flex-wrap">
@@ -131,11 +132,25 @@ function WelcomeHeader({ student }) {
               </p>
             </div>
           </div>
-          <div className="bg-white/20 p-4 rounded-2xl backdrop-blur-sm">
-            <GraduationCap className="w-8 h-8" />
+
+          {/* زر تسجيل الخروج وأيقونة القبعة */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => signOut({ callbackUrl: "/login" })}
+              className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl backdrop-blur-md transition-all text-sm font-bold group"
+              title="تسجيل الخروج"
+            >
+              <LogOut className="w-4 h-4 group-hover:translate-x-[-2px] transition-transform" />
+              <span>خروج</span>
+            </button>
+            
+            <div className="bg-white/20 p-4 rounded-2xl backdrop-blur-sm hidden sm:block">
+              <GraduationCap className="w-8 h-8" />
+            </div>
           </div>
         </div>
       </div>
+      
       {/* Decorative Elements */}
       <div className="absolute left-0 top-0 w-64 h-64 bg-white/10 rounded-full -translate-x-1/2 -translate-y-1/2"></div>
       <div className="absolute right-0 bottom-0 w-96 h-96 bg-white/5 rounded-full translate-x-1/2 translate-y-1/2"></div>
