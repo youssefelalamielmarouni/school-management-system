@@ -3,16 +3,14 @@ import { useSession } from "next-auth/react";
 import { useState, useEffect } from "react";
 import { getStudentProfileData } from "@/lib/actions/studentPortalActions";
 import { 
-  BookOpen, 
-  Calendar, 
-  CheckCircle, 
-  Clock, 
+  CheckCircle,
   GraduationCap,
   AlertCircle,
   RefreshCw,
-  Calendar as CalendarIcon,
-  Bell
+  FileText,
+  ArrowLeft
 } from "lucide-react";
+import Link from "next/link";
 
 export default function StudentDashboard() {
   const { data: session, status } = useSession();
@@ -52,28 +50,22 @@ export default function StudentDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-purple-50 to-blue-50 p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 p-4 md:p-8">
+      <div className="max-w-4xl mx-auto space-y-8">
         {/* Welcome Header */}
         <WelcomeHeader student={data.student} />
         
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Today's Schedule */}
-          <TodaySchedule schedule={data.schedule} />
-          
-          {/* Weekly Overview */}
-          <WeeklySchedule schedule={data.schedule} />
-        </div>
+        {/* Gap between Header and Attendance */}
+        <div className="h-2"></div>
+        
+        {/* Stats Card - Only Attendance */}
+        <AttendanceCard attendanceRate={data.attendanceRate} />
 
-        {/* Stats Cards */}
-        <StatsGrid 
-          attendanceRate={data.attendanceRate} 
-          student={data.student} 
-        />
+        {/* Gap between Attendance and Test Results */}
+        <div className="h-4"></div>
 
-        {/* Bottom Grid */}
-        <BottomGrid grades={data.grades} />
+        {/* Test Results Section */}
+        <TestResultsSection grades={data.grades} />
       </div>
     </div>
   );
@@ -85,7 +77,7 @@ function LoadingState({ message = "جاري التحميل..." }) {
   return (
     <div className="min-h-screen flex items-center justify-center">
       <div className="text-center space-y-4">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-600 border-t-transparent mx-auto"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-600 border-t-transparent mx-auto"></div>
         <p className="text-gray-600 animate-pulse">{message}</p>
       </div>
     </div>
@@ -105,7 +97,7 @@ function ErrorState({ error, onRetry }) {
         </div>
         <button 
           onClick={onRetry}
-          className="px-6 py-3 bg-linear-to-r from-purple-600 to-blue-600 text-white rounded-xl font-medium hover:opacity-90 transition-opacity flex items-center gap-2 mx-auto"
+          className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-medium hover:opacity-90 transition-opacity flex items-center gap-2 mx-auto"
         >
           <RefreshCw className="w-4 h-4" />
           إعادة المحاولة
@@ -124,17 +116,17 @@ function WelcomeHeader({ student }) {
   };
 
   return (
-    <div className="relative bg-linear-to-r from-purple-600 to-blue-600 text-white rounded-3xl p-8 overflow-hidden shadow-xl">
+    <div className="relative bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-3xl p-8 overflow-hidden shadow-xl">
       <div className="relative z-10">
-        <div className="flex justify-between items-start">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <p className="text-purple-100 mb-2">{getGreeting()}،</p>
-            <h1 className="text-4xl font-black mb-2">{student.name}</h1>
+            <p className="text-indigo-100 mb-2 text-lg">{getGreeting()}،</p>
+            <h1 className="text-3xl md:text-4xl font-black mb-3">{student.name}</h1>
             <div className="flex items-center gap-4 flex-wrap">
-              <p className="text-purple-100 text-lg">
+              <p className="text-indigo-100">
                 <span className="font-semibold text-white">الفصل:</span> {student.classId?.className || "غير محدد"}
               </p>
-              <p className="text-purple-100 text-lg">
+              <p className="text-indigo-100">
                 <span className="font-semibold text-white">رقم القيد:</span> {student.rollNumber}
               </p>
             </div>
@@ -151,239 +143,82 @@ function WelcomeHeader({ student }) {
   );
 }
 
-function TodaySchedule({ schedule }) {
-  const todaySchedule = schedule?.filter(s => 
-    s.day === new Date().toLocaleDateString('ar-SA', { weekday: 'long' })
-  ) || [];
+function AttendanceCard({ attendanceRate }) {
+  return (
+    <div className="bg-white rounded-3xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition-all group">
+      <div className="flex items-center gap-4">
+        <div className="p-4 bg-gradient-to-br from-green-100 to-green-200 rounded-2xl group-hover:scale-110 transition-transform">
+          <CheckCircle className="text-green-600 w-6 h-6" />
+        </div>
+        <div>
+          <p className="text-gray-500 text-sm font-medium">نسبة الحضور</p>
+          <p className="text-4xl font-black text-gray-800">{attendanceRate}%</p>
+          <p className="text-xs text-gray-400 mt-1">بناءً على السجل الشهري</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TestResultsSection({ grades }) {
+  // Get only the 3 most recent grades
+  const recentGrades = grades?.slice(0, 3) || [];
 
   return (
-    <div className="lg:col-span-1 bg-white rounded-3xl shadow-lg p-6 border border-gray-100">
-      <div className="flex items-center gap-3 mb-6">
-        <div className="p-3 bg-linear-to-br from-purple-100 to-purple-200 rounded-2xl">
-          <Calendar className="text-purple-600 w-6 h-6" />
+    <div className="bg-white rounded-3xl shadow-lg p-6 border border-gray-100">
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <div className="p-3 bg-gradient-to-br from-purple-100 to-purple-200 rounded-2xl">
+            <FileText className="text-purple-600 w-6 h-6" />
+          </div>
+          <h2 className="text-xl font-bold text-gray-800">نتائج الاختبارات</h2>
         </div>
-        <h2 className="text-xl font-bold text-gray-800">حصص اليوم</h2>
+        
+        <Link
+          href="/student/grades"
+          className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-medium hover:opacity-90 transition-opacity shadow-md hover:shadow-lg"
+        >
+          <span>عرض الكل</span>
+          <ArrowLeft className="w-4 h-4" />
+        </Link>
       </div>
       
       <div className="space-y-3">
-        {todaySchedule.length > 0 ? (
-          todaySchedule.map((slot, i) => (
+        {recentGrades.length > 0 ? (
+          recentGrades.map((grade, idx) => (
             <div 
-              key={i} 
-              className="group bg-linear-to-r from-purple-50 to-white p-4 rounded-2xl border-r-4 border-purple-500 hover:shadow-md transition-all"
+              key={idx} 
+              className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-white rounded-2xl hover:shadow-md transition-all border border-gray-100"
             >
-              <div className="flex justify-between items-center">
-                <div>
-                  <p className="font-bold text-gray-800 text-lg">
-                    {slot.subjectId?.subjectName}
-                  </p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-xs text-gray-500 flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      {slot.startTime} - {slot.endTime}
-                    </span>
-                  </div>
-                </div>
-                <div className="bg-purple-100 px-3 py-1 rounded-full">
-                  <span className="text-purple-600 text-sm font-medium">
-                    {slot.room || "قاعة 1"}
-                  </span>
-                </div>
+              <div>
+                <p className="font-bold text-gray-800 text-lg">{grade.subject}</p>
+                <p className="text-sm text-gray-500 mt-0.5">{grade.name}</p>
+              </div>
+              <div className="text-left bg-indigo-50 px-5 py-2.5 rounded-xl">
+                <span className="text-2xl font-black text-indigo-700">{grade.score}</span>
+                <span className="text-gray-400 text-sm mr-1">/{grade.total}</span>
               </div>
             </div>
           ))
         ) : (
-          <div className="text-center py-12">
-            <div className="bg-gray-50 rounded-2xl p-8">
-              <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-              <p className="text-gray-400">لا توجد حصص مجدولة لهذا اليوم</p>
-              <p className="text-sm text-gray-300 mt-1">استمتع بيومك!</p>
-            </div>
+          <div className="text-center">
+            
           </div>
         )}
       </div>
-    </div>
-  );
-}
 
-function WeeklySchedule({ schedule }) {
-  const days = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس'];
-
-  return (
-    <div className="lg:col-span-2 bg-white rounded-3xl shadow-lg p-6 border border-gray-100">
-      <div className="flex items-center gap-3 mb-6">
-        <div className="p-3 bg-linear-to-br from-blue-100 to-blue-200 rounded-2xl">
-          <BookOpen className="text-blue-600 w-6 h-6" />
+      {/* View All Link for Mobile (if there are more than 3 grades) */}
+      {grades?.length > 3 && (
+        <div className="mt-4 text-center md:hidden">
+          <Link
+            href="/student/grades"
+            className="inline-flex items-center gap-2 text-indigo-600 font-medium hover:text-indigo-800 transition-colors"
+          >
+            <span>عرض جميع النتائج ({grades.length})</span>
+            <ArrowLeft className="w-4 h-4" />
+          </Link>
         </div>
-        <h2 className="text-xl font-bold text-gray-800">الجدول الأسبوعي</h2>
-      </div>
-      
-      <div className="grid grid-cols-5 gap-3">
-        {days.map((day) => (
-          <div key={day} className="space-y-2">
-            <div className="bg-linear-to-r from-blue-600 to-purple-600 text-white rounded-xl p-2 text-center text-sm font-bold">
-              {day}
-            </div>
-            <div className="space-y-2 min-h-[120px]">
-              {schedule?.filter(s => s.day === day).map((item, idx) => (
-                <div 
-                  key={idx} 
-                  className="p-2 bg-linear-to-br from-blue-50 to-white rounded-xl border border-blue-100 text-center group hover:shadow-md transition-all"
-                >
-                  <p className="text-xs font-bold text-blue-800 truncate">
-                    {item.subjectId?.subjectName}
-                  </p>
-                  <p className="text-[10px] text-gray-500 mt-1">
-                    {item.startTime}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function StatsGrid({ attendanceRate, student }) {
-  const stats = [
-    {
-      icon: <CheckCircle className="w-6 h-6" />,
-      label: "نسبة الحضور",
-      value: `${attendanceRate}%`,
-      desc: "بناءً على السجل الشهري",
-      color: "from-green-100 to-green-200",
-      iconColor: "text-green-600"
-    },
-    {
-      icon: <BookOpen className="w-6 h-6" />,
-      label: "المواد المسجلة",
-      value: student.classId?.subjects?.length || 0,
-      desc: "مواد الفصل الحالي",
-      color: "from-blue-100 to-blue-200",
-      iconColor: "text-blue-600"
-    },
-    {
-      icon: <Clock className="w-6 h-6" />,
-      label: "الحالة الأكاديمية",
-      value: "منتظم",
-      desc: "الفصل الدراسي الثاني",
-      color: "from-orange-100 to-orange-200",
-      iconColor: "text-orange-600"
-    }
-  ];
-
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-      {stats.map((stat, index) => (
-        <div 
-          key={index}
-          className="bg-white rounded-3xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition-all group"
-        >
-          <div className="flex items-center gap-4">
-            <div className={`p-4 bg-linear-to-br ${stat.color} rounded-2xl group-hover:scale-110 transition-transform`}>
-              <div className={stat.iconColor}>{stat.icon}</div>
-            </div>
-            <div>
-              <p className="text-gray-500 text-sm font-medium">{stat.label}</p>
-              <p className="text-3xl font-black text-gray-800">{stat.value}</p>
-              <p className="text-xs text-gray-400 mt-1">{stat.desc}</p>
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function BottomGrid({ grades }) {
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {/* Recent Grades */}
-      <div className="bg-white rounded-3xl shadow-lg p-6 border border-gray-100">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="p-3 bg-gradient-to-br from-purple-100 to-purple-200 rounded-2xl">
-            <CalendarIcon className="text-purple-600 w-6 h-6" />
-          </div>
-          <h2 className="text-xl font-bold text-gray-800">آخر نتائج الاختبارات</h2>
-        </div>
-        
-        <div className="space-y-3">
-          {grades && grades.length > 0 ? (
-            grades.slice(0, 5).map((grade, idx) => (
-              <div 
-                key={idx} 
-                className="flex items-center justify-between p-4 bg-linear-to-r from-gray-50 to-white rounded-2xl hover:shadow-md transition-all"
-              >
-                <div>
-                  <p className="font-bold text-gray-800">{grade.subject}</p>
-                  <p className="text-xs text-gray-400">{grade.name}</p>
-                </div>
-                <div className="text-left bg-purple-50 px-4 py-2 rounded-xl">
-                  <span className="text-xl font-black text-purple-700">{grade.score}</span>
-                  <span className="text-gray-400 text-sm">/{grade.total}</span>
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="text-center py-12">
-              <div className="bg-gray-50 rounded-2xl p-8">
-                <BookOpen className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-400">لا توجد درجات مرصودة حالياً</p>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Notifications */}
-      <div className="bg-white rounded-3xl shadow-lg p-6 border border-gray-100">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="p-3 bg-gradient-to-br from-yellow-100 to-yellow-200 rounded-2xl">
-            <Bell className="text-yellow-600 w-6 h-6" />
-          </div>
-          <h2 className="text-xl font-bold text-gray-800">تنبيهات وإعلانات</h2>
-        </div>
-        
-        <div className="space-y-3">
-          <AlertItem 
-            text="موعد اختبار اللغة الإنجليزية الأسبوع القادم" 
-            date="اليوم"
-            urgent={true}
-          />
-          <AlertItem 
-            text="تم تحديث جدول الحصص الخاص بفصلك" 
-            date="أمس"
-          />
-          <AlertItem 
-            text="تذكير: رحلة مدرسية يوم الخميس القادم" 
-            date="قبل يومين"
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function AlertItem({ text, date, urgent = false }) {
-  return (
-    <div className={`group p-4 rounded-2xl flex justify-between items-center transition-all hover:shadow-md ${
-      urgent 
-        ? 'bg-gradient-to-r from-red-50 to-white border-r-4 border-red-500' 
-        : 'bg-gradient-to-r from-purple-50 to-white border-r-4 border-purple-500'
-    }`}>
-      <div className="flex items-center gap-3">
-        <div className={`w-2 h-2 rounded-full ${
-          urgent ? 'bg-red-500 animate-pulse' : 'bg-purple-500'
-        }`}></div>
-        <span className="text-gray-700 text-sm font-medium">{text}</span>
-      </div>
-      <span className={`text-xs px-2 py-1 rounded-full ${
-        urgent ? 'bg-red-100 text-red-600' : 'bg-purple-100 text-purple-600'
-      }`}>
-        {date}
-      </span>
+      )}
     </div>
   );
 }
